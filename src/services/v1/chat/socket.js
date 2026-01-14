@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const User = require("../users/model/User"); 
 const Message = require("./model/Message");
+const Room = require("./model/Room");
 const { JWT_SECRET } = require("../../../configuration");
 
 let io;
@@ -44,11 +45,40 @@ const initSocket = (server) => {
         console.log(`User Connected: ${socket.user.username} (${socket.id})`);
 
         // Join a room
-        socket.on("join_room", (room) => {
-            if (!room) return;
-            socket.join(room);
-            console.log(`User ${socket.user.username} joined room: ${room}`);
-            socket.to(room).emit("notification", `${socket.user.username} joined`);
+        socket.on("join_room", async (room) => {
+            try {
+                if (!room) return;
+
+                // Check if room exists in database
+                let roomData = await Room.findOne({ name: room });
+
+                if (!roomData) {
+                    // Create new room if it doesn't exist
+                    roomData = await Room.create({
+                        name: room,
+                        description: "",
+                        members: [socket.user._id],
+                        createdBy: socket.user._id
+                    });
+                    console.log(`Room created: ${room} by ${socket.user.username}`);
+                } else {
+                    // Add user to members if not already a member
+                    if (!roomData.members.includes(socket.user._id)) {
+                        roomData.members.push(socket.user._id);
+                        await roomData.save();
+                        console.log(`User ${socket.user.username} added to room: ${room}`);
+                    }
+                }
+
+                // Join the socket room
+                socket.join(room);
+                console.log(`User ${socket.user.username} joined room: ${room}`);
+                socket.to(room).emit("notification", `${socket.user.username} joined`);
+                
+            } catch (error) {
+                console.error("Join room error:", error);
+                socket.emit("error", { message: "Failed to join room" });
+            }
         });
 
         // Send Message
@@ -58,12 +88,15 @@ const initSocket = (server) => {
 
                 if (!room || !content) return;
 
+
                 // Save to Database
                 const newMessage = await Message.create({
                     sender: socket.user._id,
                     content: content,
                     room: room
                 });
+
+                console.log(`Message from ${socket.user.username} in room ${room}: ${content}`);
 
                 
                 const populatedMessage = await newMessage.populate("sender", "username email");

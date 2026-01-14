@@ -11,4 +11,9 @@ router.use(
 	require("./users")
 );
 
+router.use(
+	"/chat",
+	require("./chat")
+)
+
 module.exports = router;

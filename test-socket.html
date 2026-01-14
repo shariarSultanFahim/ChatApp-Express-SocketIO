@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Chat Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        input, button { padding: 10px; margin: 5px; }
+        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+        .message { margin: 5px 0; padding: 5px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>Socket.IO Chat Test</h1>
+    
+    <div>
+        <input type="text" id="token" placeholder="Enter your JWT token" style="width: 500px;">
+        <button onclick="connect()">Connect</button>
+    </div>
+    
+    <div id="status">Status: Disconnected</div>
+    
+    <div style="margin-top: 20px;">
+        <input type="text" id="room" placeholder="Room name">
+        <button onclick="joinRoom()">Join Room</button>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <input type="text" id="message" placeholder="Type a message" style="width: 400px;">
+        <button onclick="sendMessage()">Send Message</button>
+    </div>
+    
+    <h3>Messages:</h3>
+    <div id="messages"></div>
+
+    <script>
+        let socket;
+
+        function connect() {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                alert('Please enter a JWT token');
+                return;
+            }
+
+            socket = io('http://127.0.0.1:4000', {
+                auth: {
+                    token: token
+                }
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('status').textContent = 'Status: Connected ✓';
+                document.getElementById('status').style.color = 'green';
+                console.log('Connected:', socket.id);
+            });
+
+            socket.on('connect_error', (error) => {
+                document.getElementById('status').textContent = 'Status: Connection Error - ' + error.message;
+                document.getElementById('status').style.color = 'red';
+                console.error('Connection error:', error);
+            });
+
+            socket.on('receive_message', (data) => {
+                console.log('Received message:', data);
+                addMessage(`${data.sender.username}: ${data.content}`, 'received');
+            });
+
+            socket.on('notification', (msg) => {
+                addMessage('Notification: ' + msg, 'notification');
+            });
+
+            socket.on('error', (error) => {
+                console.error('Socket error:', error);
+                alert('Error: ' + error.message);
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('status').textContent = 'Status: Disconnected';
+                document.getElementById('status').style.color = 'red';
+            });
+        }
+
+        function joinRoom() {
+            if (!socket || !socket.connected) {
+                alert('Please connect first');
+                return;
+            }
+
+            const room = document.getElementById('room').value;
+            if (!room) {
+                alert('Please enter a room name');
+                return;
+            }
+
+            socket.emit('join_room', room);
+            addMessage(`You joined room: ${room}`, 'system');
+        }
+
+        function sendMessage() {
+            if (!socket || !socket.connected) {
+                alert('Please connect first');
+                return;
+            }
+
+            const room = document.getElementById('room').value;
+            const content = document.getElementById('message').value;
+
+            if (!room || !content) {
+                alert('Please enter room and message');
+                return;
+            }
+
+            socket.emit('send_message', { room, content });
+            addMessage(`You: ${content}`, 'sent');
+            document.getElementById('message').value = '';
+        }
+
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+            msgDiv.textContent = text;
+            
+            if (type === 'sent') msgDiv.style.background = '#d1f2eb';
+            if (type === 'received') msgDiv.style.background = '#fff3cd';
+            if (type === 'system') msgDiv.style.background = '#cfe2ff';
+            if (type === 'notification') msgDiv.style.background = '#f8d7da';
+            
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
