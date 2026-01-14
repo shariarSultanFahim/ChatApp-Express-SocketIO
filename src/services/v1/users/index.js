@@ -29,7 +29,15 @@ const protect = async (req, res, next) => {
 	}
 };
 
-
+//Get all users
+router.get("/all", protect,  async (req, res) => {
+    try {
+        const users = await User.find().select("-password");
+        res.status(200).json({ success: true, data: users });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // Get user by by ID
 router.get("/", protect, async (req, res) => {
