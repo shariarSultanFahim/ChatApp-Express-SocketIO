@@ -4,6 +4,7 @@ const cors = require("cors");
 
 // REST API
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // CORS Permission
 app.use(
