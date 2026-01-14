@@ -13,8 +13,9 @@ router.post("/register", async (req, res) => {
     console.log(req.body);
 
     try {
-        const { username, password } = req.body;
-        const user = await User.create({ username, password });
+        const { username, password, email } = req.body;
+        const role = req.body.role || "user";
+        const user = await User.create({ username, password, email, role });
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
         
@@ -44,7 +45,7 @@ router.post("/login", async (req, res) => {
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRE });
 
-        res.status(200).json({ success: true, token, user: { id: user._id, username: user.username } });
+        res.status(200).json({ success: true, token, user: { id: user._id, username: user.username, role: user.role } });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
