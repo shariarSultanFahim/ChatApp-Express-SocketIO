@@ -92,6 +92,26 @@
 
     <script>
       let socket;
+      let currentUserId;
+
+      function decodeJWT(token) {
+        try {
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => {
+                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+              })
+              .join("")
+          );
+          return JSON.parse(jsonPayload);
+        } catch (error) {
+          console.error("Error decoding JWT:", error);
+          return null;
+        }
+      }
 
       function connect() {
         const token = document.getElementById("token").value;
@@ -99,6 +119,11 @@
         if (!token) {
           alert("Please enter a JWT token");
           return;
+        }
+
+        const decoded = decodeJWT(token);
+        if (decoded) {
+          currentUserId = decoded.id;
         }
 
         socket = io("http://127.0.0.1:4000", {
@@ -122,15 +147,21 @@
 
         socket.on("receive_message", (data) => {
           console.log("Received message:", data);
-          const senderName = data.sender.username;
+          const isSender = currentUserId === data.sender._id;
+          const senderDisplay = isSender ? "You" : data.sender.username;
+
           if (data.type === "image" && data.attachmentUrl) {
+            const imageText = `${senderDisplay} sent an image`;
             addMessageWithImage(
-              `${senderName}: ${data.content}`,
+              imageText,
               data.attachmentUrl,
-              "received"
+              isSender ? "sent" : "received"
             );
           } else {
-            addMessage(`${senderName}: ${data.content}`, "received");
+            addMessage(
+              `${senderDisplay}: ${data.content}`,
+              isSender ? "sent" : "received"
+            );
           }
         });
 
@@ -181,7 +212,6 @@
         }
 
         socket.emit("send_message", { room, content });
-        addMessage(`You: ${content}`, "sent");
         document.getElementById("message").value = "";
       }
 
@@ -232,7 +262,7 @@
               if (room && socket && socket.connected) {
                 socket.emit("send_message", {
                   room: room,
-                  content: "Shared an image",
+                  content: "sent an image",
                   type: "image",
                   attachmentUrl: data.url,
                 });

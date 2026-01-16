@@ -105,11 +105,7 @@ const initSocket = (server) => {
           "username email"
         );
 
-        if (content !== "") {
-          socket.to(room).emit("receive_message", populatedMessage);
-        } else if (attachmentUrl) {
-          io.to(room).emit("receive_message", populatedMessage);
-        }
+        io.to(room).emit("receive_message", populatedMessage);
       } catch (error) {
         console.error("Message Error:", error);
         socket.emit("error", { message: "Failed to send message" });
